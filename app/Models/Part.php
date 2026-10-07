@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Part extends Model
@@ -15,6 +16,7 @@ class Part extends Model
         'name',
         'brand',
         'category',
+        'part_category_id',
         'cost_price',
         'selling_price',
         'stock',
@@ -22,6 +24,7 @@ class Part extends Model
         'unit',
         'location',
         'supplier',
+        'supplier_id',
         'is_active',
     ];
 
@@ -46,8 +49,19 @@ class Part extends Model
         return $this->stock <= 0;
     }
 
+    public function supplierRelation(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
+    public function partCategory(): BelongsTo
+    {
+        return $this->belongsTo(PartCategory::class, 'part_category_id');
+    }
+
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
     }
 }
+

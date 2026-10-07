@@ -18,6 +18,8 @@ class WorkOrder extends Model
         'customer_id',
         'vehicle_id',
         'technician_id',
+        'supplier_id',
+        'supplier_sales_id',
         'created_by',
         'status',
         'complaint',
@@ -87,6 +89,16 @@ class WorkOrder extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function supplierSales(): BelongsTo
+    {
+        return $this->belongsTo(SupplierSales::class, 'supplier_sales_id');
     }
 
     public function items(): HasMany

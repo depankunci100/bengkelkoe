@@ -53,6 +53,16 @@
             <span>Sparepart & Stok</span>
         </a>
 
+        <a href="{{ route('part-categories.index') }}" class="nav-link {{ request()->routeIs('part-categories.*') ? 'active' : '' }}">
+            <i class="bi bi-tags"></i>
+            <span>Kategori Sparepart</span>
+        </a>
+
+        <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}">
+            <i class="bi bi-truck"></i>
+            <span>Master Supplier</span>
+        </a>
+
         <a href="{{ route('services.index') }}" class="nav-link {{ request()->routeIs('services.*') ? 'active' : '' }}">
             <i class="bi bi-wrench"></i>
             <span>Daftar Jasa / Tarif</span>

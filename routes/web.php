@@ -6,11 +6,13 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\PartCategoryController;
 use App\Http\Controllers\PartController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\WorkOrderController;
 use Illuminate\Support\Facades\Route;
@@ -69,6 +71,8 @@ Route::middleware(['auth'])->group(function () {
     // Inventory & Spareparts (Sections 20 & 21)
     Route::resource('parts', PartController::class);
     Route::post('/parts/{part}/adjust-stock', [PartController::class, 'adjustStock'])->name('parts.adjust-stock');
+    Route::resource('part-categories', PartCategoryController::class)->except(['create', 'show', 'edit']);
+    Route::resource('suppliers', SupplierController::class);
 
     // Services (Daftar Jasa & Tarif)
     Route::resource('services', ServiceController::class)->only(['index', 'store', 'update', 'destroy']);

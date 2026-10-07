@@ -6,9 +6,15 @@
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
         <h4 class="fw-bold mb-1 text-dark">Gudang & Suku Cadang (Inventory)</h4>
-        <p class="text-muted small mb-0">Kelola master sparepart, harga beli, harga jual, lokasi rak, dan level minimum stok.</p>
+        <p class="text-muted small mb-0">Kelola master sparepart (Mesin, Kaki-kaki, Transmisi, dll.), HPP, harga jual, dan vendor supplier.</p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{{ route('part-categories.index') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
+            <i class="bi bi-tags"></i> Kategori
+        </a>
+        <a href="{{ route('suppliers.index') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
+            <i class="bi bi-truck"></i> Supplier
+        </a>
         <a href="{{ route('parts.create') }}" class="btn btn-primary d-inline-flex align-items-center gap-2">
             <i class="bi bi-plus-circle-fill"></i>
             <span>Tambah Sparepart</span>
@@ -18,6 +24,19 @@
 @endsection
 
 @section('content')
+
+<!-- QUICK CATEGORY PILLS -->
+<div class="mb-3 d-flex flex-wrap gap-2">
+    <a href="{{ route('parts.index') }}" class="btn btn-sm {{ empty($category) ? 'btn-dark' : 'btn-light border' }} fw-semibold rounded-pill">
+        Semua Kategori
+    </a>
+    @foreach($categories as $catItem)
+        <a href="{{ route('parts.index', ['category' => $catItem->name]) }}" class="btn btn-sm {{ $category === $catItem->name ? 'btn-primary' : 'btn-light border text-dark' }} fw-semibold rounded-pill d-inline-flex align-items-center gap-1">
+            <i class="bi {{ $catItem->icon ?: 'bi-tag' }}"></i>
+            {{ $catItem->name }}
+        </a>
+    @endforeach
+</div>
 
 <!-- Search & Filter Card -->
 <div class="card shadow-sm border-0 mb-4">
@@ -34,12 +53,21 @@
                 <select name="category" class="form-select">
                     <option value="">-- Semua Kategori --</option>
                     @foreach($categories as $cat)
-                        <option value="{{ $cat }}" {{ $category === $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                        <option value="{{ $cat->name }}" {{ $category === $cat->name ? 'selected' : '' }}>{{ $cat->name }}</option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-2">
+                <select name="supplier_id" class="form-select">
+                    <option value="">-- Semua Supplier --</option>
+                    @foreach($suppliers as $sup)
+                        <option value="{{ $sup->id }}" {{ ($supplierId == $sup->id) ? 'selected' : '' }}>{{ $sup->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="col-6 col-md-2">
                 <select name="stock_status" class="form-select">
                     <option value="">-- Status Stok --</option>
                     <option value="low" {{ $stockFilter === 'low' ? 'selected' : '' }}>⚠️ Stok Rendah</option>
@@ -53,7 +81,7 @@
                 </button>
             </div>
 
-            @if($search || $category || $stockFilter)
+            @if($search || $category || $supplierId || $stockFilter)
                 <div class="col-auto">
                     <a href="{{ route('parts.index') }}" class="btn btn-outline-secondary">Reset</a>
                 </div>
@@ -73,10 +101,11 @@
                         <th>Part Number</th>
                         <th>Nama Suku Cadang</th>
                         <th>Kategori & Brand</th>
+                        <th>Supplier / Pemasok</th>
                         <th class="text-end">Harga Beli</th>
                         <th class="text-end">Harga Jual</th>
                         <th class="text-center">Stok Fisik</th>
-                        <th>Status Stok</th>
+                        <th>Status</th>
                         <th>Lokasi Rak</th>
                         <th class="text-end">Aksi</th>
                     </tr>
@@ -91,11 +120,21 @@
                             </td>
                             <td>
                                 <span class="fw-bold text-dark d-block">{{ $part->name }}</span>
-                                <small class="text-muted">{{ $part->supplier ?? '-' }}</small>
+                                <small class="text-muted">{{ $part->brand }}</small>
                             </td>
                             <td>
                                 <span class="badge bg-light text-dark border">{{ $part->category }}</span>
-                                <small class="text-muted d-block">{{ $part->brand }}</small>
+                            </td>
+                            <td>
+                                @if($part->supplierRelation)
+                                    <a href="{{ route('suppliers.show', $part->supplierRelation->id) }}" class="text-decoration-none small text-dark fw-semibold">
+                                        <i class="bi bi-truck text-muted me-1"></i>{{ $part->supplierRelation->name }}
+                                    </a>
+                                @elseif($part->supplier)
+                                    <span class="small text-muted"><i class="bi bi-truck me-1"></i>{{ $part->supplier }}</span>
+                                @else
+                                    <span class="small text-muted">-</span>
+                                @endif
                             </td>
                             <td class="text-end small text-muted">
                                 Rp {{ number_format($part->cost_price, 0, ',', '.') }}
@@ -110,7 +149,7 @@
                                 @if($part->stock <= 0)
                                     <span class="badge bg-danger">Habis</span>
                                 @elseif($part->stock <= $part->min_stock)
-                                    <span class="badge bg-warning text-dark">Stock Rendah</span>
+                                    <span class="badge bg-warning text-dark">Rendah</span>
                                 @else
                                     <span class="badge bg-success">Aman</span>
                                 @endif

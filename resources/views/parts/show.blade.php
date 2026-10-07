@@ -72,7 +72,16 @@
             <div class="card-body p-3">
                 <span class="text-muted small text-uppercase fw-bold">Lokasi Gudang / Rak</span>
                 <h4 class="fw-bold text-dark my-1">{{ $part->location ?? '-' }}</h4>
-                <small class="text-muted">Supplier: {{ $part->supplier ?? '-' }}</small>
+                <small class="text-muted">
+                    Supplier: 
+                    @if($part->supplierRelation)
+                        <a href="{{ route('suppliers.show', $part->supplierRelation->id) }}" class="text-decoration-none fw-semibold">
+                            {{ $part->supplierRelation->name }}
+                        </a>
+                    @else
+                        {{ $part->supplier ?? '-' }}
+                    @endif
+                </small>
             </div>
         </div>
     </div>
@@ -108,6 +117,8 @@
                                 <th class="text-center">Jumlah</th>
                                 <th class="text-center">Stok Sebelum</th>
                                 <th class="text-center">Stok Sesudah</th>
+                                <th>Harga Beli Batch</th>
+                                <th>No. Ref / Supplier</th>
                                 <th>Keterangan / No. WO</th>
                                 <th>Operator</th>
                             </tr>
@@ -128,6 +139,23 @@
                                     <td class="text-center fw-bold">{{ (float) $mov->quantity }}</td>
                                     <td class="text-center text-muted">{{ (float) $mov->before_stock }}</td>
                                     <td class="text-center fw-bold text-dark">{{ (float) $mov->after_stock }}</td>
+                                    <td class="small">
+                                        @if($mov->cost_price)
+                                            <span class="fw-semibold text-dark">Rp {{ number_format($mov->cost_price, 0, ',', '.') }}</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="small">
+                                        @if($mov->batch_reference)
+                                            <span class="font-monospace fw-semibold">{{ $mov->batch_reference }}</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                        @if($mov->supplier)
+                                            <div class="text-muted small"><i class="bi bi-truck me-1"></i>{{ $mov->supplier }}</div>
+                                        @endif
+                                    </td>
                                     <td class="small text-dark">
                                         {{ $mov->notes }}
                                         @if($mov->workOrder)
@@ -167,32 +195,117 @@
 </div>
 
 <!-- MODAL PENYESUAIAN STOK (STOCK OPNAME) -->
-<x-modal id="adjustStockModal" title="Penyesuaian Stok (Stock Opname)">
+<x-modal id="adjustStockModal" title="Penyesuaian Stok (Stock Opname) & Barang Masuk">
     <form action="{{ route('parts.adjust-stock', $part->id) }}" method="POST">
         @csrf
         
         <div class="mb-3">
-            <label class="form-label fw-semibold">Pilih Jenis Penyesuaian</label>
-            <select name="type" class="form-select" required>
-                <option value="IN">Barang Masuk / Pembelian Baru (Tambah Stok)</option>
+            <label class="form-label fw-semibold">Pilih Jenis Penyesuaian / Mutasi</label>
+            <select name="type" id="mutationType" class="form-select" required>
+                <option value="IN" selected>Barang Masuk / Pembelian Baru (Tambah Stok)</option>
                 <option value="OUT">Barang Rusak / Kadaluarsa / Hilang (Kurangi Stok)</option>
-                <option value="ADJUSTMENT">Koreksi Fisik Nyata (Setel Stok Baru)</option>
+                <option value="ADJUSTMENT">Koreksi Fisik Nyata (Setel Hasil Stock Opname)</option>
             </select>
         </div>
 
         <div class="mb-3">
-            <label for="quantity" class="form-label fw-semibold">Jumlah Kuantitas ({{ $part->unit }})</label>
-            <input type="number" name="quantity" id="quantity" class="form-control" placeholder="Contoh: 10" min="1" required>
-            <div class="form-text text-muted">Stok fisik sistem saat ini: <strong>{{ $part->stock }} {{ $part->unit }}</strong></div>
+            <label for="quantity" id="quantityLabel" class="form-label fw-semibold">Jumlah Kuantitas Masuk ({{ $part->unit }})</label>
+            <input type="number" name="quantity" id="quantity" class="form-control" placeholder="Contoh: 10" min="0" required>
+            <div class="form-text text-muted" id="currentStockHelp">
+                Stok fisik tercatat di sistem: <strong class="text-dark">{{ $part->stock }} {{ $part->unit }}</strong> &bull; HPP aktif: <strong class="text-dark">Rp {{ number_format($part->cost_price, 0, ',', '.') }}</strong>
+            </div>
         </div>
 
-        <x-form.textarea name="notes" label="Alasan Penyesuaian" placeholder="Contoh: Pembelian faktur PO-1234 / Hasil Stock Opname bulanan..." rows="3" required />
+        <!-- SEKSI KHUSUS: BARANG MASUK / HARGA BEDA & BATCH OPNAME -->
+        <div id="batchPricingSection" class="card bg-light border p-3 mb-3">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <i class="bi bi-calculator text-primary fs-5"></i>
+                <h6 class="fw-bold mb-0 text-dark">Kalkulasi HPP & Batch Pembelian Baru</h6>
+            </div>
+            <p class="small text-muted mb-3">
+                Jika barang masuk memiliki harga beli berbeda dari supplier, sistem akan mengkalkulasi HPP (Harga Pokok Penjualan) baru secara otomatis.
+            </p>
+
+            <div class="row g-2 mb-2">
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold">Harga Beli Batch Masuk (Rp)</label>
+                    <input type="number" name="cost_price" class="form-control form-control-sm" placeholder="Contoh: {{ (int) $part->cost_price }}" min="0">
+                    <div class="form-text small text-muted">HPP saat ini: Rp {{ number_format($part->cost_price, 0, ',', '.') }}</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold">Metode Kalkulasi HPP</label>
+                    <select name="cost_calculation_method" class="form-select form-select-sm">
+                        <option value="AVERAGE" selected>Moving Average (Rata-rata Tertimbang)</option>
+                        <option value="LATEST">Harga Terbaru (Ganti HPP)</option>
+                        <option value="KEEP">Pertahankan HPP Lama</option>
+                    </select>
+                    <div class="form-text small text-muted">Rekomendasi: Moving Average</div>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-semibold">Harga Jual Baru (Rp)</label>
+                    <input type="number" name="selling_price" class="form-control form-control-sm" placeholder="Rp {{ (int) $part->selling_price }}" min="0">
+                    <div class="form-text small text-muted">Opsional jika ada penyesuaian</div>
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-semibold">No. Faktur / Surat Jalan</label>
+                    <input type="text" name="batch_reference" class="form-control form-control-sm" placeholder="Contoh: INV-2026-091">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label small fw-semibold">Supplier / Pemasok</label>
+                    <select name="supplier_id" class="form-select form-select-sm">
+                        <option value="">-- Pilih Supplier --</option>
+                        @if(isset($suppliers))
+                            @foreach($suppliers as $s)
+                                <option value="{{ $s->id }}" {{ ($part->supplier_id == $s->id || $part->supplier == $s->name) ? 'selected' : '' }}>
+                                    {{ $s->name }}
+                                </option>
+                            @endforeach
+                        @endif
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <x-form.textarea name="notes" label="Alasan Penyesuaian / Catatan Faktur" placeholder="Contoh: Faktur PO-2026-118 barang masuk restock / Opname fisik akhir bulan..." rows="2" required />
 
         <div class="d-flex justify-content-end gap-2 mt-4">
             <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Batal</button>
-            <button type="submit" class="btn btn-primary">Simpan Mutasi Stok</button>
+            <button type="submit" class="btn btn-primary fw-semibold">
+                <i class="bi bi-check2-circle me-1"></i> Simpan Mutasi Stok
+            </button>
         </div>
     </form>
 </x-modal>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const mutationType = document.getElementById('mutationType');
+        const quantityLabel = document.getElementById('quantityLabel');
+        const batchPricingSection = document.getElementById('batchPricingSection');
+        const currentStockHelp = document.getElementById('currentStockHelp');
+
+        if (mutationType) {
+            mutationType.addEventListener('change', function () {
+                const val = this.value;
+                if (val === 'IN') {
+                    quantityLabel.textContent = 'Jumlah Kuantitas Masuk ({{ $part->unit }})';
+                    batchPricingSection.classList.remove('d-none');
+                    currentStockHelp.innerHTML = 'Stok saat ini: <strong>{{ $part->stock }} {{ $part->unit }}</strong> (akan bertambah)';
+                } else if (val === 'OUT') {
+                    quantityLabel.textContent = 'Jumlah Kuantitas Keluar ({{ $part->unit }})';
+                    batchPricingSection.classList.add('d-none');
+                    currentStockHelp.innerHTML = 'Stok saat ini: <strong>{{ $part->stock }} {{ $part->unit }}</strong> (akan berkurang)';
+                } else if (val === 'ADJUSTMENT') {
+                    quantityLabel.textContent = 'Hasil Hitungan Stok Fisik Riil ({{ $part->unit }})';
+                    batchPricingSection.classList.remove('d-none');
+                    currentStockHelp.innerHTML = 'Stok di sistem saat ini: <strong>{{ $part->stock }} {{ $part->unit }}</strong> (akan disesuaikan ke angka riil)';
+                }
+            });
+        }
+    });
+</script>
 
 @endsection

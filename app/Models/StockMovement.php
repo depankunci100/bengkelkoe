@@ -15,6 +15,11 @@ class StockMovement extends Model
         'work_order_id',
         'type', // IN, OUT, ADJUSTMENT
         'quantity',
+        'cost_price',
+        'selling_price',
+        'batch_reference',
+        'supplier',
+        'supplier_id',
         'before_stock',
         'after_stock',
         'notes',
@@ -25,6 +30,8 @@ class StockMovement extends Model
     {
         return [
             'quantity' => 'decimal:2',
+            'cost_price' => 'decimal:2',
+            'selling_price' => 'decimal:2',
             'before_stock' => 'decimal:2',
             'after_stock' => 'decimal:2',
         ];
@@ -33,6 +40,11 @@ class StockMovement extends Model
     public function part(): BelongsTo
     {
         return $this->belongsTo(Part::class);
+    }
+
+    public function supplierRelation(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
     }
 
     public function workOrder(): BelongsTo
