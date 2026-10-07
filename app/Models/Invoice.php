@@ -16,7 +16,10 @@ class Invoice extends Model
         'work_order_id',
         'customer_id',
         'subtotal',
+        'discount_type',    // FIXED, PERCENT
+        'discount_percent',
         'discount',
+        'discount_reason',
         'tax',
         'grand_total',
         'amount_paid',
@@ -31,6 +34,7 @@ class Invoice extends Model
     {
         return [
             'subtotal' => 'decimal:2',
+            'discount_percent' => 'decimal:2',
             'discount' => 'decimal:2',
             'tax' => 'decimal:2',
             'grand_total' => 'decimal:2',

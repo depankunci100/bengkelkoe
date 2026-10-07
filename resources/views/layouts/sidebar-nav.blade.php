@@ -31,6 +31,12 @@
         <span>Approval Pelanggan</span>
     </a>
 
+    <a href="{{ route('scanner.index') }}" class="nav-link {{ request()->routeIs('scanner.*') ? 'active' : '' }}">
+        <i class="bi bi-upc-scan"></i>
+        <span>Scanner Barcode</span>
+        <span class="badge bg-primary ms-auto" style="font-size: 0.65rem;">Gudang</span>
+    </a>
+
     <!-- MASTER DATA (Owner & Admin) -->
     @if($role === 'owner' || $role === 'admin')
         <div class="sidebar-heading">Pelanggan & Unit</div>
@@ -61,6 +67,11 @@
         <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}">
             <i class="bi bi-truck"></i>
             <span>Master Supplier</span>
+        </a>
+
+        <a href="{{ route('supplier-returns.index') }}" class="nav-link {{ request()->routeIs('supplier-returns.*') ? 'active' : '' }}">
+            <i class="bi bi-arrow-return-left"></i>
+            <span>Retur Barang Supplier</span>
         </a>
 
         <a href="{{ route('services.index') }}" class="nav-link {{ request()->routeIs('services.*') ? 'active' : '' }}">

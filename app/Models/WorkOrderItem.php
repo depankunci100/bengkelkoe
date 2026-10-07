@@ -21,6 +21,10 @@ class WorkOrderItem extends Model
         'subtotal',
         'approval_status', // PENDING, APPROVED, REJECTED
         'is_additional',
+        'is_verified',
+        'verified_quantity',
+        'verified_at',
+        'verified_by',
         'notes',
     ];
 
@@ -31,7 +35,18 @@ class WorkOrderItem extends Model
             'unit_price' => 'decimal:2',
             'subtotal' => 'decimal:2',
             'is_additional' => 'boolean',
+            'is_verified' => 'boolean',
+            'verified_quantity' => 'decimal:2',
+            'verified_at' => 'datetime',
         ];
+    }
+
+    public function isFullyVerified(): bool
+    {
+        if ($this->type !== 'PART') {
+            return true;
+        }
+        return $this->is_verified || (float) $this->verified_quantity >= (float) $this->quantity;
     }
 
     public function workOrder(): BelongsTo
@@ -47,5 +62,10 @@ class WorkOrderItem extends Model
     public function part(): BelongsTo
     {
         return $this->belongsTo(Part::class);
+    }
+
+    public function verifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'verified_by');
     }
 }

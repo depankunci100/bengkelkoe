@@ -29,7 +29,10 @@ class WorkOrder extends Model
         'total_services',
         'total_parts',
         'subtotal',
+        'discount_type',
+        'discount_percent',
         'discount',
+        'discount_reason',
         'tax',
         'grand_total',
         'approval_token',
@@ -39,6 +42,8 @@ class WorkOrder extends Model
         'approved_at',
         'started_at',
         'completed_at',
+        'parts_verified_at',
+        'parts_verified_by',
     ];
 
     protected function casts(): array
@@ -47,6 +52,7 @@ class WorkOrder extends Model
             'total_services' => 'decimal:2',
             'total_parts' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'discount_percent' => 'decimal:2',
             'discount' => 'decimal:2',
             'tax' => 'decimal:2',
             'grand_total' => 'decimal:2',
@@ -55,6 +61,7 @@ class WorkOrder extends Model
             'approved_at' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
+            'parts_verified_at' => 'datetime',
         ];
     }
 
@@ -116,6 +123,54 @@ class WorkOrder extends Model
         return $this->hasOne(Invoice::class);
     }
 
+    public function partsVerifier(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'parts_verified_by');
+    }
+
+    public function allApprovedPartsVerified(): bool
+    {
+        $partItems = $this->items()
+            ->where('type', 'PART')
+            ->where(function ($q) {
+                $q->where('approval_status', 'APPROVED')
+                  ->orWhereNull('approval_status');
+            })
+            ->get();
+
+        if ($partItems->isEmpty()) {
+            return true;
+        }
+
+        return $partItems->every(fn($item) => $item->isFullyVerified());
+    }
+
+    public function partVerificationProgress(): array
+    {
+        $partItems = $this->items()
+            ->where('type', 'PART')
+            ->where(function ($q) {
+                $q->where('approval_status', 'APPROVED')
+                  ->orWhereNull('approval_status');
+            })
+            ->get();
+
+        $total = $partItems->count();
+        if ($total === 0) {
+            return ['total' => 0, 'verified' => 0, 'percent' => 100, 'is_complete' => true];
+        }
+
+        $verified = $partItems->filter(fn($item) => $item->isFullyVerified())->count();
+        $percent = round(($verified / $total) * 100);
+
+        return [
+            'total' => $total,
+            'verified' => $verified,
+            'percent' => $percent,
+            'is_complete' => $verified === $total,
+        ];
+    }
+
     public function timelines(): HasMany
     {
         return $this->hasMany(WoTimeline::class)->orderBy('created_at', 'asc');
@@ -131,13 +186,22 @@ class WorkOrder extends Model
         $services = $this->items()->where('type', 'SERVICE')->sum('subtotal');
         $parts = $this->items()->where('type', 'PART')->sum('subtotal');
         $subtotal = $services + $parts;
-        $tax = round(($subtotal - $this->discount) * 0.11, 2); // PPN 11%
-        $grandTotal = max(0, ($subtotal - $this->discount) + $tax);
+
+        $discountAmount = (float) ($this->discount ?? 0);
+        if ($this->discount_type === 'PERCENT' && (float) ($this->discount_percent ?? 0) > 0) {
+            $discountAmount = round(($subtotal * (float) $this->discount_percent) / 100, 2);
+        }
+        $discountAmount = min($subtotal, max(0, $discountAmount));
+
+        $taxable = max(0, $subtotal - $discountAmount);
+        $tax = round($taxable * 0.11, 2); // PPN 11%
+        $grandTotal = $taxable + $tax;
 
         $this->update([
             'total_services' => $services,
             'total_parts' => $parts,
             'subtotal' => $subtotal,
+            'discount' => $discountAmount,
             'tax' => $tax,
             'grand_total' => $grandTotal,
         ]);

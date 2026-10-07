@@ -37,4 +37,14 @@ class SupplierSales extends Model
     {
         return $this->hasMany(WorkOrder::class, 'supplier_sales_id');
     }
+
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class, 'supplier_sales_id');
+    }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(SupplierReturn::class, 'supplier_sales_id');
+    }
 }

@@ -12,6 +12,7 @@ use App\Models\Payment;
 use App\Models\Service;
 use App\Models\StockMovement;
 use App\Models\Supplier;
+use App\Models\SupplierSales;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WhatsappLog;
@@ -166,6 +167,86 @@ class DatabaseSeeder extends Seeder
         $supModels = [];
         foreach ($suppliersData as $sup) {
             $supModels[$sup['code']] = Supplier::create($sup);
+        }
+
+        // Master Sales Representatif per Supplier (1 Supplier punya banyak Sales)
+        $salesData = [
+            // Sales PT Sumber Jaya Otomotif
+            [
+                'supplier_id' => $supModels['SUP-001']->id,
+                'name' => 'Bambang Sudiro',
+                'phone' => '081234560001',
+                'email' => 'bambang@sumberjayaoto.com',
+                'area' => 'Surabaya Barat & Pusat',
+                'notes' => 'Sales Senior sparepart Toyota Genuine & Denso.',
+            ],
+            [
+                'supplier_id' => $supModels['SUP-001']->id,
+                'name' => 'Denny Setiawan',
+                'phone' => '081234560011',
+                'email' => 'denny@sumberjayaoto.com',
+                'area' => 'Surabaya Timur & Sidoarjo',
+                'notes' => 'Spesialis Part Fast Moving & Busi.',
+            ],
+            [
+                'supplier_id' => $supModels['SUP-001']->id,
+                'name' => 'Riko Pratama',
+                'phone' => '081234560012',
+                'email' => 'riko@sumberjayaoto.com',
+                'area' => 'Surabaya Utara & Gresik',
+                'notes' => 'Spesialis Kopling Aisin & Pompa Radiator.',
+            ],
+
+            // Sales Toko Kaki-Kaki Mandiri
+            [
+                'supplier_id' => $supModels['SUP-002']->id,
+                'name' => 'Hendro Setiawan',
+                'phone' => '081234560002',
+                'email' => 'hendro@kakikakimandiri.com',
+                'area' => 'Sales Counter Pusat',
+                'notes' => 'Admin order toko Kedungdoro.',
+            ],
+            [
+                'supplier_id' => $supModels['SUP-002']->id,
+                'name' => 'Aris Munandar',
+                'phone' => '081234560021',
+                'email' => 'aris@kakikakimandiri.com',
+                'area' => 'Sales Lapangan / Delivery Understeel',
+                'notes' => 'Sering antar langsung shock Kayaba & Tierod 555 ke bengkel.',
+            ],
+
+            // Sales CV Bintang Transmisi & Kopling
+            [
+                'supplier_id' => $supModels['SUP-003']->id,
+                'name' => 'Rudi Hartono',
+                'phone' => '081234560003',
+                'email' => 'rudi@bintangtransmisi.com',
+                'area' => 'Area Bengkel Rekanan Surabaya',
+                'notes' => 'Penanggung jawab garansi kopling Aisin.',
+            ],
+            [
+                'supplier_id' => $supModels['SUP-003']->id,
+                'name' => 'Ferry Irawan',
+                'phone' => '081234560031',
+                'email' => 'ferry@bintangtransmisi.com',
+                'area' => 'Spesialis Transmisi Matik & CV Joint',
+                'notes' => 'Biasa bawa mobil dinas atau armada toko untuk WO overhaul transmisi.',
+            ],
+
+            // Sales PT Pelumas Nusantara Sentosa
+            [
+                'supplier_id' => $supModels['SUP-004']->id,
+                'name' => 'Iwan Setiadi',
+                'phone' => '081234560004',
+                'email' => 'iwan@pelumasnusantara.co.id',
+                'area' => 'Sales Representative Pelumas Jawa Timur',
+                'notes' => 'Distribusi rutin drum & galon Castrol/Shell.',
+            ],
+        ];
+
+        $salesModels = [];
+        foreach ($salesData as $idx => $sData) {
+            $salesModels[$idx] = SupplierSales::create($sData);
         }
 
         // 5. Master Kategori Suku Cadang
@@ -760,6 +841,8 @@ class DatabaseSeeder extends Seeder
             'customer_id' => $cust1->id,
             'vehicle_id' => $veh1->id,
             'technician_id' => $tech1->id,
+            'supplier_id' => $supModels['SUP-001']->id,
+            'supplier_sales_id' => $salesModels[0]->id,
             'created_by' => $admin->id,
             'status' => 'COMPLETED',
             'complaint' => 'Servis berkala 45.000 KM dan ganti oli mesin.',
@@ -1018,6 +1101,8 @@ class DatabaseSeeder extends Seeder
             'customer_id' => $cust3->id,
             'vehicle_id' => $veh3->id,
             'technician_id' => $tech1->id,
+            'supplier_id' => $supModels['SUP-002']->id,
+            'supplier_sales_id' => $salesModels[4]->id,
             'created_by' => $admin->id,
             'status' => 'IN_PROGRESS',
             'complaint' => 'Getaran mesin terasa kasar saat AC menyala di lampu merah. Ganti oli sekalian.',

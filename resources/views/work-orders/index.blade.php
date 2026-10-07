@@ -55,15 +55,15 @@
     <div class="card-body p-3">
         <form action="{{ route('work-orders.index') }}" method="GET" class="row g-2 align-items-center">
             <input type="hidden" name="status" value="{{ $status }}">
-            <div class="col-12 col-md-6 col-lg-5">
+            <div class="col-12 col-md-6">
                 <div class="input-group">
                     <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
-                    <input type="text" name="search" class="form-control border-start-0" placeholder="Cari No. WO, plat nomor, customer, atau keluhan..." value="{{ $search }}">
+                    <input type="text" name="search" class="form-control border-start-0" placeholder="Cari No. WO, plat nomor, nama pelanggan..." value="{{ $search }}">
                 </div>
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-funnel"></i> Cari
+                    <i class="bi bi-search"></i> Cari
                 </button>
             </div>
             @if($search)
@@ -97,7 +97,7 @@
                 <thead class="table-light text-muted small text-uppercase">
                     <tr>
                         <th>No. WO & Waktu</th>
-                        <th>Pelanggan</th>
+                        <th>Pelanggan & Sales Mitra</th>
                         <th>Kendaraan</th>
                         <th>Keluhan Masuk</th>
                         <th>Teknisi</th>
@@ -119,7 +119,7 @@
                                 <a href="{{ route('customers.show', $wo->customer_id) }}" class="fw-semibold text-dark text-decoration-none d-block">
                                     {{ $wo->customer->name }}
                                 </a>
-                                <small class="text-muted"><i class="bi bi-telephone"></i> {{ $wo->customer->phone }}</small>
+                                <small class="text-muted d-block"><i class="bi bi-telephone"></i> {{ $wo->customer->phone }}</small>
                             </td>
                             <td>
                                 <span class="badge bg-dark fs-7 px-2 py-1 fw-bold text-tracking">{{ $wo->vehicle->plate_number }}</span>

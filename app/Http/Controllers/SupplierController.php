@@ -77,12 +77,32 @@ class SupplierController extends Controller
     {
         $supplier = Supplier::with([
             'parts' => function ($q) {
-                $q->latest();
+                $q->with('partCategory')->latest();
+            },
+            'sales' => function ($q) {
+                $q->withCount([
+                    'stockMovements as deliveries_count' => function ($sq) {
+                        $sq->where('type', 'IN');
+                    },
+                    'returns'
+                ])->latest();
             },
             'stockMovements' => function ($q) {
-                $q->with(['part', 'user'])->latest()->limit(20);
+                $q->where('type', 'IN')
+                  ->with(['part.partCategory', 'supplierSales', 'user'])
+                  ->latest();
+            },
+            'returns' => function ($q) {
+                $q->with(['part', 'supplierSales', 'user'])->latest();
             }
-        ])->withCount('parts')->findOrFail($id);
+        ])->withCount([
+            'parts',
+            'sales',
+            'stockMovements as deliveries_count' => function ($q) {
+                $q->where('type', 'IN');
+            },
+            'returns'
+        ])->findOrFail($id);
 
         return view('suppliers.show', compact('supplier'));
     }

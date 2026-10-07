@@ -6,7 +6,12 @@
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
     <div>
         <h4 class="fw-bold mb-1 text-dark">Invoice & Faktur Servis</h4>
-        <p class="text-muted small mb-0">Kelola tagihan pelanggan, status pelunasan, sisa saldo, dan cetak faktur resmi.</p>
+        <p class="text-muted small mb-0">Kelola tagihan pelanggan, status pelunasan, diskon servis, dan cetak faktur resmi.</p>
+    </div>
+    <div>
+        <a href="{{ route('invoices.create') }}" class="btn btn-primary d-inline-flex align-items-center gap-2">
+            <i class="bi bi-plus-lg"></i> Terbitkan Invoice Baru
+        </a>
     </div>
 </div>
 @endsection
@@ -86,8 +91,16 @@
                                 <small class="text-muted d-block">{{ $inv->workOrder->vehicle->brand }} {{ $inv->workOrder->vehicle->model }}</small>
                             </td>
                             <td class="small text-muted">{{ $inv->issued_at ? $inv->issued_at->translatedFormat('d M Y') : $inv->created_at->format('d/m/Y') }}</td>
-                            <td class="text-end fw-bold text-dark">
-                                Rp {{ number_format($inv->grand_total, 0, ',', '.') }}
+                            <td class="text-end">
+                                <span class="fw-bold text-dark d-block">Rp {{ number_format($inv->grand_total, 0, ',', '.') }}</span>
+                                @if($inv->discount > 0)
+                                    <small class="text-success fw-semibold" style="font-size: 0.72rem;">
+                                        <i class="bi bi-tag-fill"></i> Diskon: -Rp {{ number_format($inv->discount, 0, ',', '.') }}
+                                        @if($inv->discount_type === 'PERCENT' && $inv->discount_percent > 0)
+                                            ({{ (float)$inv->discount_percent }}%)
+                                        @endif
+                                    </small>
+                                @endif
                             </td>
                             <td class="text-end fw-semibold text-success">
                                 Rp {{ number_format($inv->amount_paid, 0, ',', '.') }}

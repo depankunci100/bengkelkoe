@@ -9,6 +9,9 @@
         <p class="text-muted small mb-0">Kelola master sparepart (Mesin, Kaki-kaki, Transmisi, dll.), HPP, harga jual, dan vendor supplier.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
+        <a href="{{ route('scanner.index') }}" class="btn btn-outline-primary d-inline-flex align-items-center gap-1">
+            <i class="bi bi-upc-scan"></i> Scanner Gudang
+        </a>
         <a href="{{ route('part-categories.index') }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
             <i class="bi bi-tags"></i> Kategori
         </a>
@@ -117,6 +120,9 @@
                                 <a href="{{ route('parts.show', $part->id) }}" class="fw-bold font-monospace text-decoration-none">
                                     {{ $part->part_number }}
                                 </a>
+                                @if($part->barcode && $part->barcode !== $part->part_number)
+                                    <small class="text-muted d-block font-monospace"><i class="bi bi-upc"></i> {{ $part->barcode }}</small>
+                                @endif
                             </td>
                             <td>
                                 <span class="fw-bold text-dark d-block">{{ $part->name }}</span>
@@ -163,6 +169,9 @@
                                 <div class="btn-group btn-group-sm">
                                     <a href="{{ route('parts.show', $part->id) }}" class="btn btn-light border text-primary" title="Detail & Mutasi">
                                         <i class="bi bi-eye"></i> Detail
+                                    </a>
+                                    <a href="{{ route('parts.barcode-print', $part->id) }}" target="_blank" class="btn btn-light border text-secondary" title="Cetak Label Barcode">
+                                        <i class="bi bi-upc"></i>
                                     </a>
                                     <a href="{{ route('parts.edit', $part->id) }}" class="btn btn-light border text-dark" title="Edit">
                                         <i class="bi bi-pencil"></i>

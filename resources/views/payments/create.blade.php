@@ -73,8 +73,26 @@
                     <!-- Ringkasan Angka (Total, Dibayar, Sisa) -->
                     <div class="p-3 bg-white border rounded mb-4">
                         <div class="d-flex justify-content-between py-1">
-                            <span class="text-muted">Total Tagihan:</span>
-                            <span class="fw-semibold">Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</span>
+                            <span class="text-muted">Subtotal:</span>
+                            <span class="fw-semibold">Rp {{ number_format($invoice->subtotal, 0, ',', '.') }}</span>
+                        </div>
+                        @if($invoice->discount > 0)
+                            <div class="d-flex justify-content-between py-1 text-success small">
+                                <span>
+                                    Potongan Diskon:
+                                    @if($invoice->discount_type === 'PERCENT' && $invoice->discount_percent > 0)
+                                        ({{ (float)$invoice->discount_percent }}%)
+                                    @endif
+                                    @if($invoice->discount_reason)
+                                        <small class="text-muted d-block" style="font-size: 0.70rem;">({{ $invoice->discount_reason }})</small>
+                                    @endif
+                                </span>
+                                <span class="fw-bold">- Rp {{ number_format($invoice->discount, 0, ',', '.') }}</span>
+                            </div>
+                        @endif
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Grand Total Tagihan:</span>
+                            <span class="fw-semibold text-primary">Rp {{ number_format($invoice->grand_total, 0, ',', '.') }}</span>
                         </div>
                         <div class="d-flex justify-content-between py-1">
                             <span class="text-muted">Sudah Dibayar:</span>

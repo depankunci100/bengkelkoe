@@ -12,15 +12,24 @@
             <div class="d-flex align-items-center gap-2">
                 <h4 class="fw-bold mb-0 text-dark">{{ $part->name }}</h4>
                 <span class="badge bg-dark font-monospace">{{ $part->part_number }}</span>
+                @if($part->barcode)
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-monospace"><i class="bi bi-upc me-1"></i>{{ $part->barcode }}</span>
+                @endif
             </div>
-            <small class="text-muted">Brand: {{ $part->brand }} &bull; Kategori: {{ $part->category }}</small>
+            <small class="text-muted">Brand: {{ $part->brand }} &bull; Kategori: {{ $part->category }} &bull; Rak: {{ $part->location ?? '-' }}</small>
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{{ route('parts.barcode-print', $part->id) }}" target="_blank" class="btn btn-outline-dark d-inline-flex align-items-center gap-1">
+            <i class="bi bi-printer"></i> Cetak Label Barcode
+        </a>
+        <a href="{{ route('scanner.index', ['mode' => 'opname']) }}" class="btn btn-outline-primary d-inline-flex align-items-center gap-1">
+            <i class="bi bi-upc-scan"></i> Scanner
+        </a>
         <button type="button" class="btn btn-warning text-dark fw-bold d-inline-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#adjustStockModal">
             <i class="bi bi-arrow-left-right"></i> Penyesuaian Stok (Stock Opname)
         </button>
-        <a href="{{ route('parts.edit', $part->id) }}" class="btn btn-outline-primary d-inline-flex align-items-center gap-1">
+        <a href="{{ route('parts.edit', $part->id) }}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1">
             <i class="bi bi-pencil"></i> Edit Item
         </a>
     </div>
@@ -99,6 +108,14 @@
             <i class="bi bi-info-circle me-1"></i> Informasi Spesifikasi
         </button>
     </li>
+    <li class="nav-item">
+        <button class="nav-link fw-semibold" id="return-tab" data-bs-toggle="tab" data-bs-target="#return-pane" type="button">
+            <i class="bi bi-arrow-return-left me-1"></i> Riwayat Retur Supplier
+            @if($part->returns->count() > 0)
+                <span class="badge bg-danger ms-1">{{ $part->returns->count() }}</span>
+            @endif
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content" id="partTabsContent">
@@ -118,9 +135,10 @@
                                 <th class="text-center">Stok Sebelum</th>
                                 <th class="text-center">Stok Sesudah</th>
                                 <th>Harga Beli Batch</th>
-                                <th>No. Ref / Supplier</th>
+                                <th>No. Ref / Supplier & Sales</th>
                                 <th>Keterangan / No. WO</th>
                                 <th>Operator</th>
+                                <th class="text-end">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -148,12 +166,22 @@
                                     </td>
                                     <td class="small">
                                         @if($mov->batch_reference)
-                                            <span class="font-monospace fw-semibold">{{ $mov->batch_reference }}</span>
-                                        @else
-                                            <span class="text-muted">-</span>
+                                            <span class="font-monospace fw-semibold d-block">{{ $mov->batch_reference }}</span>
                                         @endif
                                         @if($mov->supplier)
                                             <div class="text-muted small"><i class="bi bi-truck me-1"></i>{{ $mov->supplier }}</div>
+                                        @endif
+                                        @if($mov->supplierSales)
+                                            <div class="mt-1">
+                                                <span class="badge bg-info-subtle text-info border font-monospace" style="font-size: 0.70rem;">
+                                                    <i class="bi bi-person-fill"></i> {{ $mov->supplierSales->name }}
+                                                </span>
+                                                @if($mov->supplierSales->phone)
+                                                    <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $mov->supplierSales->phone) }}?text=Halo%20{{ urlencode($mov->supplierSales->name) }}%2C%20kami%20dari%20bengkel%20ingin%20konfirmasi%20barang%20batch%20{{ urlencode($mov->batch_reference ?? $part->name) }}" target="_blank" class="text-success ms-1 small" title="WhatsApp Sales">
+                                                        <i class="bi bi-whatsapp"></i>
+                                                    </a>
+                                                @endif
+                                            </div>
                                         @endif
                                     </td>
                                     <td class="small text-dark">
@@ -165,6 +193,13 @@
                                         @endif
                                     </td>
                                     <td class="small text-muted">{{ $mov->user->name ?? 'Sistem' }}</td>
+                                    <td class="text-end">
+                                        @if($mov->type === 'IN')
+                                            <a href="{{ route('supplier-returns.create', ['part_id' => $part->id, 'movement_id' => $mov->id]) }}" class="btn btn-xs btn-outline-danger text-nowrap" title="Buat Faktur Retur Barang Rusak dari Batch Ini">
+                                                <i class="bi bi-arrow-return-left"></i> Retur
+                                            </a>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -191,6 +226,78 @@
                 </x-card>
             </div>
         </div>
+    </div>
+
+    <!-- TAB 3: RIWAYAT RETUR KE SUPPLIER -->
+    <div class="tab-pane fade" id="return-pane">
+        <x-card>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-arrow-return-left text-danger me-1"></i> Riwayat Pengembalian Barang Rusak ke Supplier</h6>
+                <a href="{{ route('supplier-returns.create', ['part_id' => $part->id]) }}" class="btn btn-sm btn-danger">
+                    <i class="bi bi-plus-lg me-1"></i> Ajukan Retur Barang Rusak
+                </a>
+            </div>
+
+            @if($part->returns->isEmpty())
+                <x-empty-state title="Tidak Ada Riwayat Retur" description="Item sparepart ini belum pernah diajukan pengembalian / retur ke supplier." icon="check-circle" />
+            @else
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small text-uppercase">
+                            <tr>
+                                <th>No. Faktur Retur</th>
+                                <th>Tanggal</th>
+                                <th>Supplier & Sales</th>
+                                <th>No. Batch / SJ</th>
+                                <th class="text-center">Qty Rusak</th>
+                                <th class="text-end">Total Nilai</th>
+                                <th>Metode</th>
+                                <th>Status</th>
+                                <th class="text-end">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($part->returns as $ret)
+                                <tr>
+                                    <td>
+                                        <a href="{{ route('supplier-returns.show', $ret->id) }}" class="fw-bold font-monospace text-decoration-none">
+                                            {{ $ret->return_number }}
+                                        </a>
+                                    </td>
+                                    <td class="small text-muted">{{ $ret->created_at->format('d/m/Y') }}</td>
+                                    <td>
+                                        <span class="fw-semibold text-dark">{{ $ret->supplier->name }}</span>
+                                        @if($ret->supplierSales)
+                                            <small class="text-muted d-block font-monospace"><i class="bi bi-person-fill"></i> {{ $ret->supplierSales->name }}</small>
+                                        @endif
+                                    </td>
+                                    <td class="small font-monospace">{{ $ret->batch_reference ?? '-' }}</td>
+                                    <td class="text-center fw-bold text-danger">{{ (float)$ret->quantity }} {{ $part->unit }}</td>
+                                    <td class="text-end fw-bold text-dark small">Rp {{ number_format($ret->total_amount, 0, ',', '.') }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border small">{{ $ret->settlement_label }}</span>
+                                    </td>
+                                    <td>
+                                        @php $b = $ret->status_badge; @endphp
+                                        <span class="badge {{ $b['class'] }}">{{ $b['label'] }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{{ route('supplier-returns.show', $ret->id) }}" class="btn btn-light border text-primary" title="Lihat">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ route('supplier-returns.print', $ret->id) }}" target="_blank" class="btn btn-light border text-dark" title="Cetak">
+                                                <i class="bi bi-printer"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </x-card>
     </div>
 </div>
 
@@ -253,9 +360,10 @@
                     <label class="form-label small fw-semibold">No. Faktur / Surat Jalan</label>
                     <input type="text" name="batch_reference" class="form-control form-control-sm" placeholder="Contoh: INV-2026-091">
                 </div>
-                <div class="col-12 col-md-4">
+            <div class="row g-2 mb-2">
+                <div class="col-12 col-md-6">
                     <label class="form-label small fw-semibold">Supplier / Pemasok</label>
-                    <select name="supplier_id" class="form-select form-select-sm">
+                    <select name="supplier_id" id="modalStockSupplierSelect" class="form-select form-select-sm" onchange="loadModalStockSales(this.value)">
                         <option value="">-- Pilih Supplier --</option>
                         @if(isset($suppliers))
                             @foreach($suppliers as $s)
@@ -265,6 +373,15 @@
                             @endforeach
                         @endif
                     </select>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label small fw-semibold text-primary">
+                        <i class="bi bi-person-badge me-1"></i> Kontak Sales Penanggung Jawab Batch Ini
+                    </label>
+                    <select name="supplier_sales_id" id="modalStockSalesSelect" class="form-select form-select-sm">
+                        <option value="">-- Pilih Sales (Opsional) --</option>
+                    </select>
+                    <div class="form-text small text-muted">Dicatat untuk identifikasi retur jika barang cacat.</div>
                 </div>
             </div>
         </div>
@@ -281,6 +398,24 @@
 </x-modal>
 
 <script>
+    const allSuppliers = @json($suppliers ?? []);
+    function loadModalStockSales(supId) {
+        const salesSelect = document.getElementById('modalStockSalesSelect');
+        if (!salesSelect) return;
+        salesSelect.innerHTML = '<option value="">-- Pilih Sales (Opsional) --</option>';
+        if (!supId) return;
+
+        const sup = allSuppliers.find(s => s.id == supId);
+        if (sup && sup.sales && sup.sales.length > 0) {
+            sup.sales.forEach(sale => {
+                const opt = document.createElement('option');
+                opt.value = sale.id;
+                opt.textContent = sale.name + (sale.phone ? ' (' + sale.phone + ')' : '') + (sale.area ? ' - ' + sale.area : '');
+                salesSelect.appendChild(opt);
+            });
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         const mutationType = document.getElementById('mutationType');
         const quantityLabel = document.getElementById('quantityLabel');
@@ -304,6 +439,11 @@
                     currentStockHelp.innerHTML = 'Stok di sistem saat ini: <strong>{{ $part->stock }} {{ $part->unit }}</strong> (akan disesuaikan ke angka riil)';
                 }
             });
+        }
+
+        const supSelectElem = document.getElementById('modalStockSupplierSelect');
+        if (supSelectElem && supSelectElem.value) {
+            loadModalStockSales(supSelectElem.value);
         }
     });
 </script>

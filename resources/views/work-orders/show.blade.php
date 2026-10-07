@@ -97,11 +97,17 @@
                 <div class="small">Seluruh servis telah selesai dan lolos inspeksi QC. Kasir dapat memproses pembayaran dan pencetakan faktur.</div>
             </div>
         </div>
-        @if($wo->invoice)
-            <a href="{{ route('payments.create', ['invoice_id' => $wo->invoice->id]) }}" class="btn btn-sm btn-primary">
-                <i class="bi bi-cash-coin me-1"></i> Proses Pembayaran di Kasir
-            </a>
-        @endif
+        <div class="d-flex gap-2">
+            @if($wo->invoice)
+                <a href="{{ route('payments.create', ['invoice_id' => $wo->invoice->id]) }}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-cash-coin me-1"></i> Proses Pembayaran di Kasir
+                </a>
+            @else
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createWoInvoiceModal">
+                    <i class="bi bi-receipt me-1"></i> Terbitkan Invoice & Diskon
+                </button>
+            @endif
+        </div>
     </div>
 @endif
 
@@ -219,13 +225,34 @@
 
         <!-- 3. ESTIMASI BIAYA & PEKERJAAN (JASA & SPAREPART) -->
         <div class="card shadow-sm border-0 mb-4">
-            <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-                <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
-                    <i class="bi bi-cash-stack text-primary"></i> Estimasi Rincian Pekerjaan & Suku Cadang
-                </h6>
-                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
-                    <i class="bi bi-plus-lg me-1"></i> Tambah Item
-                </button>
+            <div class="card-header bg-white border-bottom py-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h6 class="card-title mb-0 fw-bold d-flex align-items-center gap-2">
+                        <i class="bi bi-cash-stack text-primary"></i> Estimasi Rincian Pekerjaan & Suku Cadang
+                    </h6>
+                    @if($wo->items->where('type', 'PART')->count() > 0)
+                        @php $prog = $wo->partVerificationProgress(); @endphp
+                        <small class="text-muted d-block mt-1">
+                            Verifikasi Gudang: 
+                            <span class="badge {{ $prog['is_complete'] ? 'bg-success' : 'bg-warning text-dark' }}">
+                                {{ $prog['verified'] }}/{{ $prog['total'] }} Part Terverifikasi ({{ $prog['percent'] }}%)
+                            </span>
+                        </small>
+                    @endif
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    @if($wo->items->where('type', 'PART')->count() > 0)
+                        <a href="{{ route('scanner.index', ['mode' => 'dispatch', 'wo_id' => $wo->id]) }}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+                            <i class="bi bi-upc-scan"></i> Scan Verifikasi Gudang
+                        </a>
+                        <a href="{{ route('work-orders.picking-slip', $wo->id) }}" target="_blank" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1">
+                            <i class="bi bi-printer"></i> Picking Slip
+                        </a>
+                    @endif
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="bi bi-plus-lg me-1"></i> Tambah Item
+                    </button>
+                </div>
             </div>
             <div class="card-body p-0">
                 @if($wo->items->isEmpty())
@@ -266,6 +293,17 @@
                                             @endif
                                             @if($item->notes)
                                                 <small class="text-muted d-block">{{ $item->notes }}</small>
+                                            @endif
+                                            @if($item->type === 'PART')
+                                                @if($item->isFullyVerified())
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size: 0.7rem;">
+                                                        <i class="bi bi-shield-check me-1"></i>Verifikasi Gudang ({{ (float)$item->verified_quantity }}/{{ (float)$item->quantity }})
+                                                    </span>
+                                                @else
+                                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle mt-1" style="font-size: 0.7rem;">
+                                                        <i class="bi bi-clock me-1"></i>Belum Diverifikasi Gudang ({{ (float)$item->verified_quantity }}/{{ (float)$item->quantity }})
+                                                    </span>
+                                                @endif
                                             @endif
                                         </td>
                                         <td class="text-center fw-semibold">
@@ -319,6 +357,17 @@
                             <span class="text-muted">Subtotal:</span>
                             <span class="fw-semibold">Rp {{ number_format($wo->subtotal, 0, ',', '.') }}</span>
                         </div>
+                        @if($wo->discount > 0)
+                            <div class="d-flex justify-content-between py-1 small text-success">
+                                <span>
+                                    Diskon:
+                                    @if($wo->discount_type === 'PERCENT' && $wo->discount_percent > 0)
+                                        ({{ (float)$wo->discount_percent }}%)
+                                    @endif
+                                </span>
+                                <span class="fw-semibold">- Rp {{ number_format($wo->discount, 0, ',', '.') }}</span>
+                            </div>
+                        @endif
                         <div class="d-flex justify-content-between py-1 small">
                             <span class="text-muted">PPN (11%):</span>
                             <span class="fw-semibold">Rp {{ number_format($wo->tax, 0, ',', '.') }}</span>
@@ -361,6 +410,11 @@
                         <span><i class="bi bi-receipt me-2"></i> Buka Faktur Invoice</span>
                         <i class="bi bi-chevron-right small"></i>
                     </a>
+                @elseif(in_array($wo->status, ['APPROVED', 'IN_PROGRESS', 'QC', 'READY_FOR_PICKUP', 'COMPLETED']))
+                    <button type="button" class="btn btn-primary d-flex align-items-center justify-content-between py-2" data-bs-toggle="modal" data-bs-target="#createWoInvoiceModal">
+                        <span><i class="bi bi-receipt-cutoff me-2"></i> Terbitkan Invoice & Diskon</span>
+                        <i class="bi bi-chevron-right small"></i>
+                    </button>
                 @endif
             </div>
         </div>
@@ -612,5 +666,202 @@
         </div>
     </form>
 </x-modal>
+
+<!-- MODAL TERBITKAN INVOICE DENGAN DISKON -->
+@if(!$wo->invoice)
+<div class="modal fade" id="createWoInvoiceModal" tabindex="-1" aria-labelledby="createWoInvoiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form action="{{ route('invoices.store') }}" method="POST" x-data="woInvoiceDiscountModal({
+                subtotal: {{ (float)$wo->subtotal }},
+                initialType: '{{ $wo->discount_type ?? 'FIXED' }}',
+                initialValue: {{ $wo->discount_type === 'PERCENT' ? (float)($wo->discount_percent ?? 0) : (float)($wo->discount ?? 0) }},
+                initialReason: '{{ addslashes($wo->discount_reason ?? '') }}',
+                includeTax: true
+            })">
+                @csrf
+                <input type="hidden" name="work_order_id" value="{{ $wo->id }}">
+
+                <div class="modal-header bg-primary text-white py-3">
+                    <h6 class="modal-title fw-bold" id="createWoInvoiceModalLabel">
+                        <i class="bi bi-receipt-cutoff me-1"></i> Terbitkan Invoice & Atur Diskon
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <div class="p-3 bg-light rounded border mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">No. Work Order:</span>
+                            <span class="fw-bold font-monospace">{{ $wo->wo_number }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small text-muted">Pelanggan:</span>
+                            <span class="fw-semibold text-dark">{{ $wo->customer->name }} ({{ $wo->vehicle->plate_number }})</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center border-top pt-1 mt-1">
+                            <span class="small text-muted">Subtotal Jasa & Part:</span>
+                            <strong class="text-primary fs-6" x-text="formatRupiah(subtotal)"></strong>
+                        </div>
+                    </div>
+
+                    <!-- Jenis Diskon -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Metode / Jenis Diskon</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="discount_type" id="woModalDiscFixed" value="FIXED" x-model="discountType" @change="recalculate()">
+                            <label class="btn btn-outline-success py-2 btn-sm fw-semibold" for="woModalDiscFixed">Nominal (Rp)</label>
+
+                            <input type="radio" class="btn-check" name="discount_type" id="woModalDiscPercent" value="PERCENT" x-model="discountType" @change="recalculate()">
+                            <label class="btn btn-outline-success py-2 btn-sm fw-semibold" for="woModalDiscPercent">Persen (%)</label>
+                        </div>
+                    </div>
+
+                    <!-- Input Nilai Diskon -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">
+                            <span x-show="discountType === 'FIXED'">Nominal Potongan Diskon (Rp)</span>
+                            <span x-show="discountType === 'PERCENT'">Persentase Potongan Diskon (%)</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text fw-bold bg-light" x-text="discountType === 'FIXED' ? 'Rp' : '%'"></span>
+                            <input type="number" 
+                                   step="any" 
+                                   min="0" 
+                                   name="discount_value" 
+                                   class="form-control fw-bold text-success fs-5" 
+                                   placeholder="0" 
+                                   x-model.number="discountValue" 
+                                   @input="recalculate()">
+                        </div>
+                        <small class="text-muted" x-show="discountType === 'PERCENT'">
+                            Nilai potongan: <strong class="text-success" x-text="formatRupiah(calculatedDiscountAmount)"></strong>
+                        </small>
+                    </div>
+
+                    <!-- Preset Cepat -->
+                    <div class="mb-3">
+                        <label class="form-label text-muted small mb-1">Preset Diskon Cepat:</label>
+                        <div class="d-flex flex-wrap gap-1" x-show="discountType === 'PERCENT'">
+                            <button type="button" class="btn btn-xs btn-outline-secondary" @click="setPreset(0)">0%</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" @click="setPreset(5)">5%</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" @click="setPreset(10)">10%</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" @click="setPreset(15)">15%</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" @click="setPreset(20)">20%</button>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1" x-show="discountType === 'FIXED'">
+                            <button type="button" class="btn btn-xs btn-outline-secondary" @click="setPreset(0)">Rp 0</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" @click="setPreset(25000)">25 rb</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" @click="setPreset(50000)">50 rb</button>
+                            <button type="button" class="btn btn-xs btn-outline-success" @click="setPreset(100000)">100 rb</button>
+                        </div>
+                    </div>
+
+                    <!-- Alasan Diskon -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small">Alasan / Kategori Diskon (Opsional)</label>
+                        <input type="text" 
+                               name="discount_reason" 
+                               class="form-control form-control-sm" 
+                               placeholder="Contoh: Promo Member, Diskon Rekanan..." 
+                               x-model="discountReason">
+                    </div>
+
+                    <!-- PPN Switch -->
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="include_tax" id="woModalIncludeTax" value="1" x-model="includeTax" @change="recalculate()">
+                        <label class="form-check-label small fw-semibold" for="woModalIncludeTax">Kenakan PPN (11%)</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Catatan Faktur (Opsional)</label>
+                        <input type="text" name="notes" class="form-control form-control-sm" placeholder="Catatan tambahan di faktur...">
+                    </div>
+
+                    <!-- Preview Kalkulasi Realtime -->
+                    <div class="p-3 bg-light rounded border">
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Potongan Diskon:</span>
+                            <strong class="text-success" x-text="'- ' + formatRupiah(calculatedDiscountAmount)"></strong>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Dasar Pengenaan Pajak (DPP):</span>
+                            <span class="fw-semibold text-dark" x-text="formatRupiah(taxableBase)"></span>
+                        </div>
+                        <div class="d-flex justify-content-between small mb-1">
+                            <span class="text-muted">Pajak PPN (11%):</span>
+                            <span class="fw-semibold text-dark" x-text="formatRupiah(taxAmount)"></span>
+                        </div>
+                        <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                            <span class="fw-bold text-dark fs-6">Grand Total Tagihan:</span>
+                            <strong class="text-primary fs-5" x-text="formatRupiah(grandTotal)"></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2 d-flex justify-content-between">
+                    <a href="{{ route('invoices.create', ['work_order_id' => $wo->id]) }}" class="small text-decoration-none">
+                        <i class="bi bi-box-arrow-up-right me-1"></i> Buka Halaman Lengkap
+                    </a>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary btn-sm fw-bold">
+                            <i class="bi bi-check2-circle me-1"></i> Terbitkan Invoice
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function woInvoiceDiscountModal(config) {
+    return {
+        subtotal: config.subtotal || 0,
+        discountType: config.initialType || 'FIXED',
+        discountValue: config.initialValue || 0,
+        discountReason: config.initialReason || '',
+        includeTax: config.includeTax !== false,
+
+        calculatedDiscountAmount: 0,
+        taxableBase: 0,
+        taxAmount: 0,
+        grandTotal: 0,
+
+        init() {
+            this.recalculate();
+        },
+
+        setPreset(val) {
+            this.discountValue = val;
+            this.recalculate();
+        },
+
+        recalculate() {
+            const sub = parseFloat(this.subtotal) || 0;
+            let val = parseFloat(this.discountValue) || 0;
+            if (val < 0) val = 0;
+
+            if (this.discountType === 'PERCENT') {
+                if (val > 100) val = 100;
+                this.calculatedDiscountAmount = Math.round((sub * val) / 100);
+            } else {
+                if (val > sub) val = sub;
+                this.calculatedDiscountAmount = val;
+            }
+
+            this.taxableBase = Math.max(0, sub - this.calculatedDiscountAmount);
+            this.taxAmount = this.includeTax ? Math.round(this.taxableBase * 0.11) : 0;
+            this.grandTotal = this.taxableBase + this.taxAmount;
+        },
+
+        formatRupiah(num) {
+            return 'Rp ' + Math.round(num || 0).toLocaleString('id-ID');
+        }
+    }
+}
+</script>
+@endif
 
 @endsection

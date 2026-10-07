@@ -9,6 +9,8 @@ use App\Models\Invoice;
 use App\Models\Part;
 use App\Models\Service;
 use App\Models\StockMovement;
+use App\Models\Supplier;
+use App\Models\SupplierSales;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\WhatsappLog;
@@ -25,6 +27,8 @@ class WorkOrderController extends Controller
     {
         $status = $request->query('status', 'ALL');
         $search = $request->query('search');
+        $supplierId = $request->query('supplier_id');
+        $salesId = $request->query('supplier_sales_id');
 
         $query = WorkOrder::with(['customer', 'vehicle', 'technician'])->latest();
 
@@ -80,6 +84,8 @@ class WorkOrderController extends Controller
             'customer_id' => 'required|exists:customers,id',
             'vehicle_id' => 'required|exists:vehicles,id',
             'technician_id' => 'nullable|exists:users,id',
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'supplier_sales_id' => 'nullable|exists:supplier_sales,id',
             'complaint' => 'required|string',
             'odometer_in' => 'nullable|integer',
         ]);
@@ -92,6 +98,8 @@ class WorkOrderController extends Controller
             'customer_id' => $validated['customer_id'],
             'vehicle_id' => $validated['vehicle_id'],
             'technician_id' => $validated['technician_id'] ?? null,
+            'supplier_id' => $validated['supplier_id'] ?? null,
+            'supplier_sales_id' => $validated['supplier_sales_id'] ?? null,
             'created_by' => auth()->id(),
             'status' => $initialStatus,
             'complaint' => $validated['complaint'],
@@ -107,11 +115,16 @@ class WorkOrderController extends Controller
         }
 
         // Catat Timeline Audit
+        $salesDesc = "";
+        if ($wo->supplier_sales_id && $wo->supplierSales) {
+            $salesDesc = " [Sales Pemasok: {$wo->supplierSales->name} ({$wo->supplier->name})]";
+        }
+
         WoTimeline::create([
             'work_order_id' => $wo->id,
             'user_id' => auth()->id(),
             'title' => 'WO Dibuat',
-            'description' => 'Work order didaftarkan ke sistem dengan keluhan: ' . $wo->complaint,
+            'description' => 'Work order didaftarkan ke sistem dengan keluhan: ' . $wo->complaint . $salesDesc,
             'status' => 'DRAFT',
         ]);
 
@@ -179,6 +192,29 @@ class WorkOrderController extends Controller
         $technicians = User::where('role', 'technician')->where('is_active', true)->get();
 
         return view('work-orders.show', compact('wo', 'services', 'parts', 'technicians'));
+    }
+
+    public function assignSales(Request $request, WorkOrder $workOrder)
+    {
+        $validated = $request->validate([
+            'supplier_id' => 'nullable|exists:suppliers,id',
+            'supplier_sales_id' => 'nullable|exists:supplier_sales,id',
+        ]);
+
+        $workOrder->update($validated);
+        $workOrder->load(['supplier', 'supplierSales']);
+
+        $salesInfo = $workOrder->supplierSales ? "{$workOrder->supplierSales->name} ({$workOrder->supplier?->name})" : "Tidak ada";
+
+        WoTimeline::create([
+            'work_order_id' => $workOrder->id,
+            'user_id' => auth()->id(),
+            'title' => 'Sales Pemasok Diperbarui',
+            'description' => "Penanggung jawab order pemasok diubah menjadi: {$salesInfo}",
+            'status' => $workOrder->status,
+        ]);
+
+        return back()->with('success', "Sales pemasok Work Order berhasil diperbarui ke: {$salesInfo}");
     }
 
     public function addItem(Request $request, WorkOrder $workOrder)
@@ -348,7 +384,10 @@ class WorkOrderController extends Controller
                     'work_order_id' => $workOrder->id,
                     'customer_id' => $workOrder->customer_id,
                     'subtotal' => $workOrder->subtotal,
-                    'discount' => $workOrder->discount,
+                    'discount_type' => $workOrder->discount_type ?? 'FIXED',
+                    'discount_percent' => $workOrder->discount_percent ?? 0,
+                    'discount' => $workOrder->discount ?? 0,
+                    'discount_reason' => $workOrder->discount_reason ?? null,
                     'tax' => $workOrder->tax,
                     'grand_total' => $workOrder->grand_total,
                     'amount_paid' => 0,

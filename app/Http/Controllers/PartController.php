@@ -23,6 +23,7 @@ class PartController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('part_number', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%")
                     ->orWhere('brand', 'like', "%{$search}%")
                     ->orWhere('supplier', 'like', "%{$search}%");
             });
@@ -66,6 +67,7 @@ class PartController extends Controller
     {
         $validated = $request->validate([
             'part_number' => 'required|string|unique:parts,part_number',
+            'barcode' => 'nullable|string|max:100',
             'name' => 'required|string|max:255',
             'brand' => 'required|string',
             'category' => 'nullable|string',
@@ -122,8 +124,17 @@ class PartController extends Controller
 
     public function show($id)
     {
-        $part = Part::with(['movements.user', 'movements.workOrder', 'partCategory', 'supplierRelation'])->findOrFail($id);
-        $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
+        $part = Part::with([
+            'movements.user',
+            'movements.workOrder',
+            'movements.supplierRelation',
+            'movements.supplierSales',
+            'returns.supplier',
+            'returns.supplierSales',
+            'partCategory',
+            'supplierRelation'
+        ])->findOrFail($id);
+        $suppliers = Supplier::with('sales')->where('is_active', true)->orderBy('name')->get();
 
         return view('parts.show', compact('part', 'suppliers'));
     }
@@ -140,6 +151,7 @@ class PartController extends Controller
     {
         $validated = $request->validate([
             'part_number' => 'required|string|unique:parts,part_number,' . $part->id,
+            'barcode' => 'nullable|string|max:100',
             'name' => 'required|string|max:255',
             'brand' => 'required|string',
             'category' => 'nullable|string',
@@ -185,6 +197,7 @@ class PartController extends Controller
             'batch_reference' => 'nullable|string',
             'supplier' => 'nullable|string',
             'supplier_id' => 'nullable|exists:suppliers,id',
+            'supplier_sales_id' => 'nullable|exists:supplier_sales,id',
         ]);
 
         $before = $part->stock;
@@ -198,6 +211,7 @@ class PartController extends Controller
 
         // Supplier resolution
         $supplierId = $request->supplier_id ?? $part->supplier_id;
+        $supplierSalesId = $request->supplier_sales_id;
         $supplierName = $request->supplier;
         if ($supplierId && empty($supplierName)) {
             $sup = Supplier::find($supplierId);
@@ -267,6 +281,7 @@ class PartController extends Controller
             'batch_reference' => $request->batch_reference,
             'supplier' => $supplierName,
             'supplier_id' => $supplierId,
+            'supplier_sales_id' => $supplierSalesId,
             'before_stock' => $before,
             'after_stock' => $after,
             'notes' => $request->notes . $costLogMsg,

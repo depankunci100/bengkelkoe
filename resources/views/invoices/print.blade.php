@@ -119,7 +119,16 @@
             </tr>
             @if($invoice->discount > 0)
                 <tr>
-                    <td class="text-success small">Potongan Diskon:</td>
+                    <td class="text-success small">
+                        Potongan Diskon
+                        @if($invoice->discount_type === 'PERCENT' && $invoice->discount_percent > 0)
+                            ({{ (float)$invoice->discount_percent }}%)
+                        @endif
+                        @if($invoice->discount_reason)
+                            <div class="text-muted" style="font-size: 0.70rem;">({{ $invoice->discount_reason }})</div>
+                        @endif
+                        :
+                    </td>
                     <td class="text-end text-success fw-semibold">- Rp {{ number_format($invoice->discount, 0, ',', '.') }}</td>
                 </tr>
             @endif

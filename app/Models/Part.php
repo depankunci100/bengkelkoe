@@ -13,6 +13,7 @@ class Part extends Model
 
     protected $fillable = [
         'part_number',
+        'barcode',
         'name',
         'brand',
         'category',
@@ -27,6 +28,19 @@ class Part extends Model
         'supplier_id',
         'is_active',
     ];
+
+    public static function findByBarcodeOrNumber(string $code): ?self
+    {
+        $code = trim($code);
+        return static::where('barcode', $code)
+            ->orWhere('part_number', $code)
+            ->first();
+    }
+
+    public function getEffectiveBarcodeAttribute(): string
+    {
+        return $this->barcode ?: $this->part_number;
+    }
 
     protected function casts(): array
     {
@@ -62,6 +76,11 @@ class Part extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function returns(): HasMany
+    {
+        return $this->hasMany(SupplierReturn::class);
     }
 }
 

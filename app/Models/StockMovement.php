@@ -20,6 +20,7 @@ class StockMovement extends Model
         'batch_reference',
         'supplier',
         'supplier_id',
+        'supplier_sales_id',
         'before_stock',
         'after_stock',
         'notes',
@@ -45,6 +46,16 @@ class StockMovement extends Model
     public function supplierRelation(): BelongsTo
     {
         return $this->belongsTo(Supplier::class, 'supplier_id');
+    }
+
+    public function supplierSales(): BelongsTo
+    {
+        return $this->belongsTo(SupplierSales::class, 'supplier_sales_id');
+    }
+
+    public function returns(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SupplierReturn::class);
     }
 
     public function workOrder(): BelongsTo
